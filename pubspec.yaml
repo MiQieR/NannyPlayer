@@ -1,5 +1,5 @@
 name: nanny_player
-description: "A new Flutter project."
+description: "外婆音乐 - 专为老年人设计的音乐播放器"
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+1
+version: 1.0.0+2
 
 environment:
   sdk: ^3.9.2
@@ -47,6 +47,12 @@ dependencies:
   # File picker for selecting music files
   file_picker: ^8.1.6
 
+  # Volume controller for hardware button volume control
+  volume_controller: ^2.0.7
+
+  # Marquee text for scrolling song names
+  marquee: ^2.2.3
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -58,6 +64,17 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
 
+  # Icon generator
+  flutter_launcher_icons: ^0.14.1
+
+# Icon configuration
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/icon/app_icon.png"
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/icon/app_icon.png"
+
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 
@@ -68,6 +85,10 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  # To add assets to your application, add an assets section, like this:
+  assets:
+    - assets/icon/app_icon.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:

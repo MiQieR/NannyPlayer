@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:volume_controller/volume_controller.dart';
+import 'package:marquee/marquee.dart';
 import 'dart:io';
 import 'dart:math';
 
@@ -22,6 +24,7 @@ class NannyPlayerApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: '音乐播放器',
+      debugShowCheckedModeBanner: false, // 隐藏DEBUG标注
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: Colors.blue,
@@ -49,12 +52,16 @@ class PlayerPage extends StatefulWidget {
 
 class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
   final AudioPlayer _audioPlayer = AudioPlayer();
+  final FocusNode _focusNode = FocusNode();
+  final VolumeController _volumeController = VolumeController();
+
   List<String> _playlist = [];
   int _currentIndex = 0;
   bool _isPlaying = false;
   Duration _duration = Duration.zero;
   Duration _position = Duration.zero;
   bool _isShuffleMode = false;
+  double _currentVolume = 0.5;
 
   // 随机播放相关
   List<int> _shuffledIndices = []; // 打乱后的索引列表
@@ -67,6 +74,7 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
     _initPlayer();
     _loadPlaylist();
     _loadSettings();
+    _initVolume();
   }
 
   @override
@@ -74,6 +82,7 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     _saveProgress();
     _audioPlayer.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
@@ -112,6 +121,113 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
         _duration = duration ?? Duration.zero;
       });
     });
+  }
+
+  // 初始化音量控制器
+  Future<void> _initVolume() async {
+    try {
+      double volume = await _volumeController.getVolume();
+      setState(() {
+        _currentVolume = volume;
+      });
+    } catch (e) {
+      // 如果获取音量失败，使用默认值
+      setState(() {
+        _currentVolume = 0.5;
+      });
+    }
+  }
+
+  // 增加音量
+  Future<void> _increaseVolume() async {
+    try {
+      double newVolume = (_currentVolume + 0.1).clamp(0.0, 1.0);
+      _volumeController.setVolume(newVolume);
+      setState(() {
+        _currentVolume = newVolume;
+      });
+
+      // 显示音量提示
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('音量: ${(newVolume * 100).toInt()}%'),
+            duration: const Duration(milliseconds: 500),
+          ),
+        );
+      }
+    } catch (e) {
+      // 忽略错误
+    }
+  }
+
+  // 减少音量
+  Future<void> _decreaseVolume() async {
+    try {
+      double newVolume = (_currentVolume - 0.1).clamp(0.0, 1.0);
+      _volumeController.setVolume(newVolume);
+      setState(() {
+        _currentVolume = newVolume;
+      });
+
+      // 显示音量提示
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('音量: ${(newVolume * 100).toInt()}%'),
+            duration: const Duration(milliseconds: 500),
+          ),
+        );
+      }
+    } catch (e) {
+      // 忽略错误
+    }
+  }
+
+  // 处理硬件按键事件
+  KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
+    // 只处理按键按下事件，忽略按键释放
+    if (event is! KeyDownEvent) {
+      return KeyEventResult.ignored;
+    }
+
+    final key = event.logicalKey;
+
+    // DPAD_CENTER (确定键) → 播放/暂停
+    if (key == LogicalKeyboardKey.select ||
+        key == LogicalKeyboardKey.enter ||
+        key == LogicalKeyboardKey.space) {
+      _togglePlayPause();
+      return KeyEventResult.handled;
+    }
+
+    // DPAD_LEFT → 上一曲
+    if (key == LogicalKeyboardKey.arrowLeft) {
+      _playPrevious();
+      return KeyEventResult.handled;
+    }
+
+    // DPAD_RIGHT → 下一曲
+    if (key == LogicalKeyboardKey.arrowRight) {
+      _playNext();
+      return KeyEventResult.handled;
+    }
+
+    // DPAD_UP → 音量增加
+    if (key == LogicalKeyboardKey.arrowUp) {
+      _increaseVolume();
+      return KeyEventResult.handled;
+    }
+
+    // DPAD_DOWN → 音量减少
+    if (key == LogicalKeyboardKey.arrowDown) {
+      _decreaseVolume();
+      return KeyEventResult.handled;
+    }
+
+    return KeyEventResult.ignored;
   }
 
   Future<void> _loadSettings() async {
@@ -359,140 +475,167 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 30.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              // 顶部：歌曲名称
-              Column(
-                children: [
-                  Text(
-                    _getCurrentSongName(),
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
+    return Focus(
+      focusNode: _focusNode,
+      onKeyEvent: _handleKeyEvent,
+      autofocus: true,
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 12.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // 顶部：歌曲名称
+                Column(
+                  children: [
+                    // 使用固定高度的Container显示滚动歌曲名
+                    SizedBox(
+                      height: 24, // 单行文本高度
+                      child: _getCurrentSongName().length > 15
+                          ? Marquee(
+                              text: _getCurrentSongName(),
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              scrollAxis: Axis.horizontal,
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              blankSpace: 30.0,
+                              velocity: 30.0,
+                              pauseAfterRound: const Duration(seconds: 1),
+                              startPadding: 10.0,
+                              accelerationDuration: const Duration(seconds: 1),
+                              accelerationCurve: Curves.linear,
+                              decelerationDuration: const Duration(milliseconds: 500),
+                              decelerationCurve: Curves.easeOut,
+                            )
+                          : Center(
+                              child: Text(
+                                _getCurrentSongName(),
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
                     ),
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    '${_formatDuration(_position)} / ${_formatDuration(_duration)}',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      color: Colors.grey,
+                    const SizedBox(height: 6),
+                    Text(
+                      '${_formatDuration(_position)} / ${_formatDuration(_duration)}',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    if (_isShuffleMode)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 4),
+                        child: Text(
+                          '随机播放',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.orange,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+
+                // 中间：播放/暂停按钮（适配320x480）
+                GestureDetector(
+                  onTap: _togglePlayPause,
+                  child: Container(
+                    width: 140,
+                    height: 140,
+                    decoration: BoxDecoration(
+                      color: Colors.blue,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.blue.withValues(alpha: 0.3),
+                          blurRadius: 15,
+                          spreadRadius: 3,
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      _isPlaying ? Icons.pause : Icons.play_arrow,
+                      size: 90,
+                      color: Colors.white,
                     ),
                   ),
-                  if (_isShuffleMode)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 5),
-                      child: Text(
-                        '随机播放',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.orange,
+                ),
+
+                // 下方：上一曲/下一曲按钮（适配320x480）
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // 上一曲按钮
+                    IconButton(
+                      onPressed: _playPrevious,
+                      icon: const Icon(Icons.skip_previous),
+                      iconSize: 60,
+                      color: Colors.blue,
+                    ),
+                    const SizedBox(width: 40),
+                    // 下一曲按钮
+                    IconButton(
+                      onPressed: _playNext,
+                      icon: const Icon(Icons.skip_next),
+                      iconSize: 60,
+                      color: Colors.blue,
+                    ),
+                  ],
+                ),
+
+                // 底部：播放进度条和设置按钮
+                Column(
+                  children: [
+                    SliderTheme(
+                      data: SliderThemeData(
+                        trackHeight: 5,
+                        thumbShape: const RoundSliderThumbShape(
+                          enabledThumbRadius: 10,
+                        ),
+                        overlayShape: const RoundSliderOverlayShape(
+                          overlayRadius: 20,
+                        ),
+                      ),
+                      child: Slider(
+                        value: _position.inMilliseconds.toDouble(),
+                        max: _duration.inMilliseconds.toDouble() > 0
+                            ? _duration.inMilliseconds.toDouble()
+                            : 1.0,
+                        onChanged: (value) async {
+                          await _audioPlayer.seek(
+                            Duration(milliseconds: value.toInt()),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    // 设置按钮
+                    ElevatedButton.icon(
+                      onPressed: _navigateToSettings,
+                      icon: const Icon(Icons.settings, size: 20),
+                      label: const Text(
+                        '设置',
+                        style: TextStyle(fontSize: 18),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 32,
+                          vertical: 12,
                         ),
                       ),
                     ),
-                ],
-              ),
-
-              // 中间：超大播放/暂停按钮（增大20%）
-              GestureDetector(
-                onTap: _togglePlayPause,
-                child: Container(
-                  width: 192,
-                  height: 192,
-                  decoration: BoxDecoration(
-                    color: Colors.blue,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.blue.withOpacity(0.3),
-                        blurRadius: 20,
-                        spreadRadius: 5,
-                      ),
-                    ],
-                  ),
-                  child: Icon(
-                    _isPlaying ? Icons.pause : Icons.play_arrow,
-                    size: 120,
-                    color: Colors.white,
-                  ),
+                  ],
                 ),
-              ),
-
-              // 下方：上一曲/下一曲按钮（增大50%，间距增大50%）
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // 上一曲按钮
-                  IconButton(
-                    onPressed: _playPrevious,
-                    icon: const Icon(Icons.skip_previous),
-                    iconSize: 75,
-                    color: Colors.blue,
-                  ),
-                  const SizedBox(width: 60),
-                  // 下一曲按钮
-                  IconButton(
-                    onPressed: _playNext,
-                    icon: const Icon(Icons.skip_next),
-                    iconSize: 75,
-                    color: Colors.blue,
-                  ),
-                ],
-              ),
-
-              // 底部：播放进度条和设置按钮
-              Column(
-                children: [
-                  SliderTheme(
-                    data: SliderThemeData(
-                      trackHeight: 6,
-                      thumbShape: const RoundSliderThumbShape(
-                        enabledThumbRadius: 12,
-                      ),
-                      overlayShape: const RoundSliderOverlayShape(
-                        overlayRadius: 24,
-                      ),
-                    ),
-                    child: Slider(
-                      value: _position.inMilliseconds.toDouble(),
-                      max: _duration.inMilliseconds.toDouble() > 0
-                          ? _duration.inMilliseconds.toDouble()
-                          : 1.0,
-                      onChanged: (value) async {
-                        await _audioPlayer.seek(
-                          Duration(milliseconds: value.toInt()),
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  // 设置按钮
-                  ElevatedButton.icon(
-                    onPressed: _navigateToSettings,
-                    icon: const Icon(Icons.settings, size: 24),
-                    label: const Text(
-                      '设置',
-                      style: TextStyle(fontSize: 20),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 40,
-                        vertical: 15,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -619,152 +762,318 @@ class _SettingsPageState extends State<SettingsPage> {
       appBar: AppBar(
         title: const Text(
           '设置',
-          style: TextStyle(fontSize: 24),
+          style: TextStyle(fontSize: 20),
         ),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // 导入音乐文件
-              Card(
-                elevation: 2,
-                child: Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        '音乐文件',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
+        child: Column(
+          children: [
+            // 可滚动内容区域
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(12.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // 导入音乐文件
+                    Card(
+                      elevation: 2,
+                      child: Padding(
+                        padding: const EdgeInsets.all(12.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              '音乐文件',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            if (_selectedFolder != null) ...[
+                              Text(
+                                '文件位置:',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                _selectedFolder!,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.blue,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                '共 $_audioFileCount 首歌曲',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                            ],
+                            ElevatedButton.icon(
+                              onPressed: _pickMusicFolder,
+                              icon: const Icon(Icons.library_music, size: 20),
+                              label: Text(
+                                _selectedFolder == null ? '选择音乐文件' : '重新选择',
+                                style: const TextStyle(fontSize: 16),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 24,
+                                  vertical: 12,
+                                ),
+                                backgroundColor: Colors.blue,
+                                foregroundColor: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              '提示：可同时选择多个音频文件',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 15),
-                      if (_selectedFolder != null) ...[
-                        Text(
-                          '文件位置:',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                        const SizedBox(height: 5),
-                        Text(
-                          _selectedFolder!,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            color: Colors.blue,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          '共 $_audioFileCount 首歌曲',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                        const SizedBox(height: 15),
-                      ],
-                      ElevatedButton.icon(
-                        onPressed: _pickMusicFolder,
-                        icon: const Icon(Icons.library_music, size: 24),
-                        label: Text(
-                          _selectedFolder == null ? '选择音乐文件' : '重新选择',
-                          style: const TextStyle(fontSize: 20),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 30,
-                            vertical: 15,
-                          ),
-                          backgroundColor: Colors.blue,
-                          foregroundColor: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        '提示：可同时选择多个音频文件',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[600],
+                    ),
+                    const SizedBox(height: 12),
+
+                    // 随机播放开关
+                    Card(
+                      elevation: 2,
+                      child: Padding(
+                        padding: const EdgeInsets.all(12.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '随机播放',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  SizedBox(height: 4),
+                                  Text(
+                                    '开启后将随机播放歌曲',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Transform.scale(
+                              scale: 1.2,
+                              child: Switch(
+                                value: _shuffleMode,
+                                onChanged: _toggleShuffleMode,
+                                activeTrackColor: Colors.blue,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // 关于链接
+            Center(
+              child: TextButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const AboutPage()),
+                  );
+                },
+                child: Text(
+                  '关于',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[500],
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
+            ),
 
-              // 随机播放开关
-              Card(
-                elevation: 2,
-                child: Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '随机播放',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          SizedBox(height: 5),
-                          Text(
-                            '开启后将随机播放歌曲',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.grey,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Transform.scale(
-                        scale: 1.3,
-                        child: Switch(
-                          value: _shuffleMode,
-                          onChanged: _toggleShuffleMode,
-                          activeColor: Colors.blue,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              const Spacer(),
-
-              // 返回按钮
-              ElevatedButton(
+            // 固定在底部的返回按钮
+            Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: ElevatedButton(
                 onPressed: () {
                   Navigator.pop(context, {
                     'playlistChanged': _selectedFolder != null,
                   });
                 },
                 style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
                   backgroundColor: Colors.grey[300],
                   foregroundColor: Colors.black87,
+                  minimumSize: const Size(double.infinity, 48),
                 ),
                 child: const Text(
                   '返回播放器',
-                  style: TextStyle(fontSize: 20),
+                  style: TextStyle(fontSize: 18),
                 ),
               ),
-            ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class AboutPage extends StatelessWidget {
+  const AboutPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: const Text(
+          '关于',
+          style: TextStyle(fontSize: 20),
+        ),
+        backgroundColor: Colors.blue,
+        foregroundColor: Colors.white,
+      ),
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // App图标
+                Container(
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    color: Colors.blue[50],
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Icon(
+                    Icons.music_note,
+                    size: 60,
+                    color: Colors.blue,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                // App名称
+                const Text(
+                  '外婆音乐',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Nanny Player',
+                  style: TextStyle(
+                    fontSize: 20,
+                    color: Colors.grey,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // 版本号
+                Text(
+                  'v1.0.0 (2)',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(height: 32),
+                // 分隔线
+                Divider(color: Colors.grey[300]),
+                const SizedBox(height: 24),
+                // 作者
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.person, size: 20, color: Colors.grey[600]),
+                    const SizedBox(width: 8),
+                    Text(
+                      '作者: @MiQieR',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey[700],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                // GitHub链接
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.code, size: 20, color: Colors.grey[600]),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        'https://github.com/MiQieR/NannyPlayer',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.blue[700],
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                // 开源协议
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.gavel, size: 20, color: Colors.grey[600]),
+                    const SizedBox(width: 8),
+                    Text(
+                      'MIT License',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey[700],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 32),
+                // 描述
+                Text(
+                  '专为老年人设计的音乐播放器',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                    fontStyle: FontStyle.italic,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
           ),
         ),
       ),

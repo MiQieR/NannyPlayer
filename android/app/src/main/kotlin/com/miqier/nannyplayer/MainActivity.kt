@@ -1,4 +1,4 @@
-package com.example.nanny_player
+package com.miqier.nannyplayer
 
 import io.flutter.embedding.android.FlutterActivity
 
