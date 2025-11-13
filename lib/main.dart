@@ -544,7 +544,7 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
                   ],
                 ),
 
-                // 中间：播放/暂停按钮（适配320x480）
+                // 中间：播放/暂停按钮（适配480x320）
                 GestureDetector(
                   onTap: _togglePlayPause,
                   child: Container(
@@ -569,7 +569,7 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
                   ),
                 ),
 
-                // 下方：上一曲/下一曲按钮（适配320x480）
+                // 下方：上一曲/下一曲按钮（适配480x320）
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
