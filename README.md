@@ -4,8 +4,9 @@
 
 <img src="img/app.png" width="200"/>
 
-一个为老年机设计的简洁音乐播放器，优化适配 `金世纪 Y60`、`TCL T50N`、`以晴 Q968`、`百合 A89`等 480x320 分辨率的 Android 系统老年机。
+一个为老年机设计的简洁音乐播放器，优化适配 `酷派金世纪 Y60`、`TCL T50N`、`以晴 Q968`、`百合 A89`等 480x320 分辨率的 Android 系统老年机。
 
+[![English Docs](https://img.shields.io/badge/docs-English-blue.svg)](README_EN.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Flutter](https://img.shields.io/badge/Flutter-3.9.2+-02569B?logo=flutter)](https://flutter.dev)
 [![Platform](https://img.shields.io/badge/Platform-Android-green.svg)](https://www.android.com/)
