@@ -551,11 +551,11 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
                     width: 140,
                     height: 140,
                     decoration: BoxDecoration(
-                      color: Colors.blue,
+                      color: _isPlaying ? Colors.blue : Colors.orange,
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.blue.withValues(alpha: 0.3),
+                          color: (_isPlaying ? Colors.blue : Colors.orange).withValues(alpha: 0.3),
                           blurRadius: 15,
                           spreadRadius: 3,
                         ),
@@ -580,7 +580,7 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
                       iconSize: 60,
                       color: Colors.blue,
                     ),
-                    const SizedBox(width: 40),
+                    const SizedBox(width: 60),
                     // 下一曲按钮
                     IconButton(
                       onPressed: _playNext,
@@ -893,26 +893,27 @@ class _SettingsPageState extends State<SettingsPage> {
                         ),
                       ),
                     ),
-                  ],
-                ),
-              ),
-            ),
+                    const SizedBox(height: 12),
 
-            // 关于链接
-            Center(
-              child: TextButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const AboutPage()),
-                  );
-                },
-                child: Text(
-                  '关于',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[500],
-                  ),
+                    // 关于按钮
+                    Center(
+                      child: TextButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const AboutPage()),
+                          );
+                        },
+                        child: Text(
+                          '关于',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[500],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -961,118 +962,118 @@ class AboutPage extends StatelessWidget {
         foregroundColor: Colors.white,
       ),
       body: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // App图标
-                Container(
-                  width: 100,
-                  height: 100,
-                  decoration: BoxDecoration(
-                    color: Colors.blue[50],
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Icon(
-                    Icons.music_note,
-                    size: 60,
-                    color: Colors.blue,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                // App名称
-                const Text(
-                  '外婆音乐',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Nanny Player',
-                  style: TextStyle(
-                    fontSize: 20,
-                    color: Colors.grey,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                // 版本号
-                Text(
-                  'v1.0.0 (2)',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey[600],
-                  ),
-                ),
-                const SizedBox(height: 32),
-                // 分隔线
-                Divider(color: Colors.grey[300]),
-                const SizedBox(height: 24),
-                // 作者
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.person, size: 20, color: Colors.grey[600]),
-                    const SizedBox(width: 8),
-                    Text(
-                      '作者: @MiQieR',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.grey[700],
-                      ),
+        child: SingleChildScrollView(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const SizedBox(height: 16),
+                  // App图标
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Image.asset(
+                      'assets/icon/app_icon.png',
+                      width: 70,
+                      height: 70,
+                      fit: BoxFit.cover,
                     ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                // GitHub链接
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.code, size: 20, color: Colors.grey[600]),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        'https://github.com/MiQieR/NannyPlayer',
+                  ),
+                  const SizedBox(height: 16),
+                  // App名称
+                  const Text(
+                    '外婆音乐',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Nanny Player',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  // 版本号
+                  Text(
+                    'v1.0.1 (3)',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  // 分隔线
+                  Divider(color: Colors.grey[300]),
+                  const SizedBox(height: 16),
+                  // 作者
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.person, size: 16, color: Colors.grey[600]),
+                      const SizedBox(width: 6),
+                      Text(
+                        '作者: @MiQieR',
                         style: TextStyle(
                           fontSize: 14,
-                          color: Colors.blue[700],
+                          color: Colors.grey[700],
                         ),
-                        textAlign: TextAlign.center,
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                // 开源协议
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.gavel, size: 20, color: Colors.grey[600]),
-                    const SizedBox(width: 8),
-                    Text(
-                      'MIT License',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.grey[700],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 32),
-                // 描述
-                Text(
-                  '专为老年人设计的音乐播放器',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[600],
-                    fontStyle: FontStyle.italic,
+                    ],
                   ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
+                  const SizedBox(height: 12),
+                  // GitHub链接
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.code, size: 16, color: Colors.grey[600]),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          'https://github.com/MiQieR/NannyPlayer',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.blue[700],
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  // 开源协议
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.gavel, size: 16, color: Colors.grey[600]),
+                      const SizedBox(width: 6),
+                      Text(
+                        'MIT License',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[700],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  // 描述
+                  Text(
+                    '专为老年人设计的音乐播放器',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                      fontStyle: FontStyle.italic,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                ],
+              ),
             ),
           ),
         ),
